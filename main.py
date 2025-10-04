@@ -1,71 +1,64 @@
+import os, re, requests, tempfile
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
-import requests
-import os
-import re
-from keep_alive import keep_alive
+BOT_TOKEN   = os.environ["BOT_TOKEN"]
+RAPID_KEY   = os.environ["RAPID_KEY"]
+регулярка ловит все известные форматы
+TIKTOK_RE = re.compile(
+r'(https?://(?:www.)?(?:tiktok.com|vm.tiktok.com|vt.tiktok.com|m.tiktok.com|t.tiktok.com|lite.tiktok.com)/[^\s?]+)',
+re.IGNORECASE
+)
+async def handle_message(update: Update, _: ContextTypes.DEFAULT_TYPE):
+text = update.message.text or update.message.caption
+if not text:
+return
+Copy
+match = TIKTOK_RE.search(text)
+if not match:
+    return
 
-BOT_TOKEN = os.environ["BOT_TOKEN"]
+url = match.group(1)
+await update.message.chat.send_action("upload_video")
+await update.message.reply_text("⏳ Скачиваю видео…")
 
-def extract_tiktok_url(text):
-    match = re.search(r'(https?://(?:www\.)?(tiktok\.com|vt\.tiktok\.com|vm\.tiktok\.com)/[^\s]+)', text)
-    return match.group(0) if match else None
+try:
+    # 1. Получаем прямую ссылку через rapidapi
+    resp = requests.get(
+        "https://tiktok-info.p.rapidapi.com/dl/",
+        headers={
+            "X-RapidAPI-Key": RAPID_KEY,
+            "X-RapidAPI-Host": "tiktok-info.p.rapidapi.com"
+        },
+        params={"url": url},
+        timeout=20
+    )
+    resp.raise_for_status()
+    data = resp.json()
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
-    if not text:
-        return
+    if not data.get("video_data", {}).get("nwm_video_url"):
+        raise RuntimeError("Видео не найдено")
 
-    url = extract_tiktok_url(text)
-    if not url:
-        return
+    video_url = data["video_data"]["nwm_video_url"]
 
-    await update.message.reply_text("⏳ Скачиваю видео...")
+    # 2. Скачиваем видео
+    video_bytes = requests.get(video_url, timeout=30).content
 
-    try:
-       await update.message.reply_text("⏳ Скачиваю видео...")
+    # 3. Отправляем
+    with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
+        tmp.write(video_bytes)
+        tmp.flush()
+        with open(tmp.name, "rb") as f:
+            await update.message.reply_video(
+                video=f,
+                supports_streaming=True,
+                reply_to_message_id=update.message.message_id
+            )
+    os.unlink(tmp.name)
 
-    proxy = os.environ.get("PROXY")          # берём из Replit-Secrets
-    proxies = {"http": proxy, "https": proxy} if proxy else None
-
-    try:
-        # 1. получаем прямую ссылку на видео
-        api_url = "https://api.tikwm.com/video/"
-        params = {"url": url}
-        print(proxies)
-        resp = requests.get(api_url, params=params, timeout=10,
-                            proxies=proxies, allow_redirects=True)
-        resp.raise_for_status()
-        data = resp.json()
-
-        if data.get("code") != 0:
-            raise RuntimeError("API вернуло ошибку")
-
-        video_url = data["data"]["play"]
-
-        # 2. скачиваем сам файл
-        video_bytes = requests.get(video_url, timeout=15,
-                                   proxies=proxies, allow_redirects=True).content
-        with open("video.mp4", "wb") as f:
-            f.write(video_bytes)
-
-        # 3. отправляем пользователю
-        with open("video.mp4", "rb") as v:
-            await update.message.reply_video(v, reply_to_message_id=update.message.id)
-
-        os.remove("video.mp4")
-
-    except requests.exceptions.ProxyError:
-        await update.message.reply_text("⚠️ Прокси недоступен")
-    except Exception as e:
-        await update.message.reply_text(f"⚠️ Ошибка: {e}")
-
+except Exception as e:
+    await update.message.reply_text(f"⚠️ Не удалось скачать: {e}")
 def main():
-    app = Application.builder().token(BOT_TOKEN).build()
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    print("Бот запущен и слушает группы...")
-    keep_alive()
-    app.run_polling()
-
-if __name__ == '__main__':
-    main()
+app = Application.builder().token(BOT_TOKEN).build()
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+app.run_polling(drop_pending_updates=True)
+if name == "main": main()
