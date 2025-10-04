@@ -23,24 +23,39 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("⏳ Скачиваю видео...")
 
     try:
-        # SnapTik API
-        api_url = "https://snapx.vercel.app/api"
+       await update.message.reply_text("⏳ Скачиваю видео...")
+
+    proxy = os.environ.get("PROXY")          # берём из Replit-Secrets
+    proxies = {"http": proxy, "https": proxy} if proxy else None
+
+    try:
+        # 1. получаем прямую ссылку на видео
+        api_url = "https://api.tikwm.com/video/"
         params = {"url": url}
-        response = requests.get(api_url, params=params, timeout=15).json()
+        resp = requests.get(api_url, params=params, timeout=10,
+                            proxies=proxies, allow_redirects=True)
+        resp.raise_for_status()
+        data = resp.json()
 
-        if not response.get("success"):
-            raise Exception("Не удалось получить видео")
+        if data.get("code") != 0:
+            raise RuntimeError("API вернуло ошибку")
 
-        video_url = response["data"]["video"]
-        video_data = requests.get(video_url, timeout=15).content
+        video_url = data["data"]["play"]
 
+        # 2. скачиваем сам файл
+        video_bytes = requests.get(video_url, timeout=15,
+                                   proxies=proxies, allow_redirects=True).content
         with open("video.mp4", "wb") as f:
-            f.write(video_data)
+            f.write(video_bytes)
 
-        with open("video.mp4", "rb") as video:
-            await update.message.reply_video(video, reply_to_message_id=update.message.id)
+        # 3. отправляем пользователю
+        with open("video.mp4", "rb") as v:
+            await update.message.reply_video(v, reply_to_message_id=update.message.id)
 
         os.remove("video.mp4")
+
+    except requests.exceptions.ProxyError:
+        await update.message.reply_text("⚠️ Прокси недоступен")
     except Exception as e:
         await update.message.reply_text(f"⚠️ Ошибка: {e}")
 
