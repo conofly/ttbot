@@ -8,7 +8,7 @@ from keep_alive import keep_alive
 BOT_TOKEN = os.environ["8256203198:AAEVleNpTrpclJNz1QA7KI_yGMLflSLevtE"]
 
 def extract_tiktok_url(text):
-    match = re.search(r'(https?://(?:www\.)?tiktok\.com/[^\s]+)', text)
+    match = re.search(r'(https?://(?:www\.)?vt.tiktok\.com/[^\s]+)', text)
     return match.group(0) if match else None
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
