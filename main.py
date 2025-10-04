@@ -1,14 +1,14 @@
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
-import yt_dlp
+import requests
 import os
 import re
 from keep_alive import keep_alive
 
-BOT_TOKEN = os.environ["8256203198:AAEVleNpTrpclJNz1QA7KI_yGMLflSLevtE"]
+BOT_TOKEN = os.environ["BOT_TOKEN"]
 
 def extract_tiktok_url(text):
-    match = re.search(r'(https?://(?:www\.)?vt.tiktok\.com/[^\s]+)', text)
+    match = re.search(r'(https?://(?:www\.)?(tiktok\.com|vt\.tiktok\.com|vm\.tiktok\.com)/[^\s]+)', text)
     return match.group(0) if match else None
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -22,19 +22,24 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("⏳ Скачиваю видео...")
 
-    ydl_opts = {
-        'outtmpl': 'video.mp4',
-        'format': 'best'
-    }
-
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
+        api_url = "https://api.tikwm.com/video/"
+        params = {"url": url}
+        response = requests.get(api_url, params=params, timeout=10).json()
 
-        with open('video.mp4', 'rb') as video:
+        if response.get("code") != 0:
+            raise Exception("Не удалось получить видео")
+
+        video_url = response["data"]["play"]
+        video_data = requests.get(video_url, timeout=10).content
+
+        with open("video.mp4", "wb") as f:
+            f.write(video_data)
+
+        with open("video.mp4", "rb") as video:
             await update.message.reply_video(video, reply_to_message_id=update.message.id)
 
-        os.remove('video.mp4')
+        os.remove("video.mp4")
     except Exception as e:
         await update.message.reply_text(f"⚠️ Ошибка: {e}")
 
