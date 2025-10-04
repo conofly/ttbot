@@ -23,15 +23,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("⏳ Скачиваю видео...")
 
     try:
-        api_url = "https://api.tikwm.com/video/"
+        # SnapTik API
+        api_url = "https://snapx.vercel.app/api"
         params = {"url": url}
-        response = requests.get(api_url, params=params, timeout=10).json()
+        response = requests.get(api_url, params=params, timeout=15).json()
 
-        if response.get("code") != 0:
+        if not response.get("success"):
             raise Exception("Не удалось получить видео")
 
-        video_url = response["data"]["play"]
-        video_data = requests.get(video_url, timeout=10).content
+        video_url = response["data"]["video"]
+        video_data = requests.get(video_url, timeout=15).content
 
         with open("video.mp4", "wb") as f:
             f.write(video_data)
