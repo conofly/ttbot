@@ -21,13 +21,9 @@ async def handle_message(update: Update, _: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("⏳ Скачиваю видео…")
 
     try:
-        # 1. Получаем прямую ссылку
-        r = requests.post(
-            "https://ttsave.app/api/ajax",
-            data={"url": url, "format": "mp4"},
-            headers={"User-Agent": "Mozilla/5.0"},
-            timeout=20
-        )
+        # 1. Получаем прямую ссылку (GET)
+        api = "https://ttsave.app/api/ajax"
+        r = requests.get(api, params={"url": url, "format": "mp4"}, timeout=20)
         r.raise_for_status()
         data = r.json()
 
@@ -59,5 +55,6 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.run_polling(drop_pending_updates=True)
     keep_alive()
+
 if __name__ == "__main__":
     main()
