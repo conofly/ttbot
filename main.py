@@ -32,6 +32,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # 1. получаем прямую ссылку на видео
         api_url = "https://api.tikwm.com/video/"
         params = {"url": url}
+        print(proxies)
         resp = requests.get(api_url, params=params, timeout=10,
                             proxies=proxies, allow_redirects=True)
         resp.raise_for_status()
