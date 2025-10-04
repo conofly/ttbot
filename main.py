@@ -1,10 +1,9 @@
-import os, re, tempfile, requests, time
+import os, re, tempfile, requests
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 
-# ловим все форматы TikTok-ссылок
 TT_RE = re.compile(
     r'(https?://(?:www\.)?(?:tiktok\.com|vm\.tiktok\.com|vt\.tiktok\.com|m\.tiktok\.com|t\.tiktok\.com|lite\.tiktok\.com)/[^\s]+)',
     re.IGNORECASE
@@ -22,18 +21,22 @@ async def handle_message(update: Update, _: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("⏳ Скачиваю видео…")
 
     try:
-        # 1. Получаем прямую ссылку через SnapTik-API
-        api = "https://snaptik-api.herokuapp.com/download"
-        r = requests.post(api, json={"url": url}, timeout=20)
+        # 1. Получаем прямую ссылку
+        r = requests.post(
+            "https://ttsave.app/api/ajax",
+            data={"url": url, "format": "mp4"},
+            headers={"User-Agent": "Mozilla/5.0"},
+            timeout=20
+        )
         r.raise_for_status()
         data = r.json()
 
-        if not data.get("success") or not data.get("video_url"):
+        if not data.get("success"):
             raise RuntimeError("Видео не найдено")
 
-        video_url = data["video_url"]
+        video_url = data["data"]["play_url"]
 
-        # 2. Качаем mp4
+        # 2. Качаем видео
         vid_bytes = requests.get(video_url, timeout=30).content
 
         # 3. Отправляем
@@ -55,7 +58,6 @@ def main():
     app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.run_polling(drop_pending_updates=True)
-    keep_alive
-    
+    keep_alive()
 if __name__ == "__main__":
     main()
