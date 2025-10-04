@@ -5,7 +5,7 @@ import os
 import re
 from keep_alive import keep_alive
 
-BOT_TOKEN = os.environ["BOT_TOKEN"]
+BOT_TOKEN = os.environ["8256203198:AAEVleNpTrpclJNz1QA7KI_yGMLflSLevtE"]
 
 def extract_tiktok_url(text):
     match = re.search(r'(https?://(?:www\.)?tiktok\.com/[^\s]+)', text)
