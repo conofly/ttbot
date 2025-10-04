@@ -55,6 +55,7 @@ def main():
     app = Application.builder().token(BOT_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.run_polling(drop_pending_updates=True)
-
+    keep_alive
+    
 if __name__ == "__main__":
     main()
